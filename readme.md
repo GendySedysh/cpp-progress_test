@@ -11,7 +11,7 @@ pip install --force-reinstall -v "conan==1.64.0"
 ```
 mkdir build 
 cd build
-conan install .. --build=missing -s
+conan install .. --build=missing
 cmake ..
 cmake --build .
 ```
