@@ -8,11 +8,13 @@
 pip install --force-reinstall -v "conan==1.64.0"
 
 Порядок сборки:
-mkdir -p build 
-cd build-release
+```
+mkdir build 
+cd build
 conan install .. --build=missing -s
 cmake ..
 cmake --build .
+```
 
 ## Использование 
 
