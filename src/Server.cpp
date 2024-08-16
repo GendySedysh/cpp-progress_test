@@ -62,19 +62,12 @@ void Session::HandleRead(const boost::system::error_code& error, size_t bytes_tr
         auto reqType = j["ReqType"];
 
         std::string reply = "Error! Unknown request type";
-        if (reqType == Requests::Registration)
+        if (reqType == Requests::REG)
         {
             // Это реквест на регистрацию пользователя.
             // Добавляем нового пользователя и возвращаем его ID.
             std::cout << "register" << std::endl;
             reply = GetCore().RegisterNewUser(j["Message"]);
-        }
-        else if (reqType == Requests::Hello)
-        {
-            // Это реквест на приветствие.
-            // Находим имя пользователя по ID и приветствуем его по имени.
-            std::cout << "hello" << std::endl;
-            reply = "Hello, " + GetCore().GetUserName(j["UserId"]) + "!\n";
         }
 
         boost::asio::async_write(socket_,

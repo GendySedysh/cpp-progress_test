@@ -1,105 +1,145 @@
-#include <iostream>
-#include <boost/asio.hpp>
+#include "Client.h"
 
-#include "Common.hpp"
-#include "json.hpp"
+namespace client {
 
 using boost::asio::ip::tcp;
 
-// Отправка сообщения на сервер по шаблону.
-void SendMessage(
-    tcp::socket& aSocket,
-    const std::string& aId,
-    const std::string& aRequestType,
-    const std::string& aMessage)
-{
+
+/* -------------------- RequestHandler -------------------- */
+
+RequestHandler::RequestHandler() {
+    request_to_executor_function[Requests::BUY] = &RequestHandler::Deal;
+    request_to_executor_function[Requests::SELL] = &RequestHandler::Deal;
+}
+
+nlohmann::json RequestHandler::PrepareRequest(std::string_view type) {
     nlohmann::json req;
-    req["UserId"] = aId;
-    req["ReqType"] = aRequestType;
-    req["Message"] = aMessage;
+
+    // нет функций способных обработать запрос
+    if (request_to_executor_function.count(type) == 0) {
+        req["Code"] = ResponseCode::ERROR;
+        return req;
+    }
+
+    auto funcIter = request_to_executor_function.at(type);
+
+    req["Message"] = (this->*funcIter)();
+    return req;
+}
+
+DealData RequestHandler::RequestDealData() {
+    DealData data;
+
+    std::cout << "How many dollars? : ";
+    std::cin >> data.dollars;
+    std::cout << "for how many rubles? : ";
+    std::cin >> data.rubles;
+
+    return data;
+}
+
+nlohmann::json RequestHandler::Deal() {
+    DealData data = RequestDealData();
+
+    nlohmann::json req;
+
+    if (!data.IsValid()) {
+        req["Code"] = ResponseCode::ERROR;
+        return req;
+    }
+
+    req["Code"] = ResponseCode::OK;
+    req["Dollars"] = data.dollars;
+    req["Rubles"] = data.rubles;
+    return req;
+}
+
+
+/* -------------------- Client -------------------- */
+
+Client::Client() {
+    tcp::resolver resolver(io_);
+    tcp::resolver::query query(tcp::v4(), "127.0.0.1", std::to_string(port));
+    tcp::resolver::iterator iterator = resolver.resolve(query);
+
+    socket_.connect(*iterator);
+}
+
+void Client::AskRequest() {
+    std::cout << "Menu:\n"
+                 "1) Sell\n"
+                 "2) Buy\n"
+                 "3) Exit\n"
+                 << std::endl;
+
+    short menu_option_num;
+    std::cin >> menu_option_num;
+
+    nlohmann::json req;
+
+    switch (menu_option_num)
+    {
+        case 1:
+        {
+            req = request_handler_.PrepareRequest(Requests::SELL);
+            req["ReqType"] = Requests::SELL;
+            break;
+        }
+        case 2:
+        {
+            req = request_handler_.PrepareRequest(Requests::BUY);
+            req["ReqType"] = Requests::BUY;
+            break;
+        }
+        case 3:
+        {
+            exit(0);
+            break;
+        }
+        default:
+        {
+            std::cout << "Unknown menu option\n" << std::endl;
+        }
+    }
+    if (req.at("Message").at("Code") == ResponseCode::ERROR) {
+        std::cout << "Invalid request" << std::endl;
+        return;
+    }
+    SendMessage(req);
+}
+
+// Отправка сообщения на сервер по шаблону.
+void Client::SendMessage(nlohmann::json req) {
+    req["UserId"] = id_;
 
     std::string request = req.dump();
-    boost::asio::write(aSocket, boost::asio::buffer(request, request.size()));
+    std::cout << request << std::endl;
+    boost::asio::write(socket_, boost::asio::buffer(request, request.size()));
 }
 
 // Возвращает строку с ответом сервера на последний запрос.
-std::string ReadMessage(tcp::socket& aSocket)
-{
+std::string Client::ReadMessage() {
     boost::asio::streambuf b;
-    boost::asio::read_until(aSocket, b, "\0");
+    boost::asio::read_until(socket_, b, "\0");
     std::istream is(&b);
     std::string line(std::istreambuf_iterator<char>(is), {});
     return line;
 }
 
 // "Создаём" пользователя, получаем его ID.
-std::string ProcessRegistration(tcp::socket& aSocket)
-{
+bool Client::ProcessRegistration() {
     std::string name;
     std::cout << "Hello! Enter your name: ";
     std::cin >> name;
 
+    nlohmann::json req;
+    req["ReqType"] = Requests::REG;
+    req["Message"] = name;
     // Для регистрации Id не нужен, заполним его нулём
-    SendMessage(aSocket, "0", Requests::Registration, name);
-    return ReadMessage(aSocket);
+    SendMessage(req);
+    std::string response = ReadMessage();
+    id_ = response;
+    return true;
 }
 
-int main()
-{
-    try
-    {
-        boost::asio::io_service io_service;
-
-        tcp::resolver resolver(io_service);
-        tcp::resolver::query query(tcp::v4(), "127.0.0.1", std::to_string(port));
-        tcp::resolver::iterator iterator = resolver.resolve(query);
-
-        tcp::socket s(io_service);
-        s.connect(*iterator);
-
-        // Мы предполагаем, что для идентификации пользователя будет использоваться ID.
-        // Тут мы "регистрируем" пользователя - отправляем на сервер имя, а сервер возвращает нам ID.
-        // Этот ID далее используется при отправке запросов.
-        std::string my_id = ProcessRegistration(s);
-
-        while (true)
-        {
-            // Тут реализовано "бесконечное" меню.
-            std::cout << "Menu:\n"
-                         "1) Hello Request\n"
-                         "2) Exit\n"
-                         << std::endl;
-
-            short menu_option_num;
-            std::cin >> menu_option_num;
-            switch (menu_option_num)
-            {
-                case 1:
-                {
-                    // Для примера того, как может выглядить взаимодействие с сервером
-                    // реализован один единственный метод - Hello.
-                    // Этот метод получает от сервера приветствие с именем клиента,
-                    // отправляя серверу id, полученный при регистрации.
-                    SendMessage(s, my_id, Requests::Hello, "");
-                    std::cout << ReadMessage(s);
-                    break;
-                }
-                case 2:
-                {
-                    exit(0);
-                    break;
-                }
-                default:
-                {
-                    std::cout << "Unknown menu option\n" << std::endl;
-                }
-            }
-        }
-    }
-    catch (std::exception& e)
-    {
-        std::cerr << "Exception: " << e.what() << "\n";
-    }
-
-    return 0;
-}
+} // client

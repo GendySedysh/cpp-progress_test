@@ -11,5 +11,5 @@ find_package(Threads REQUIRED)
 ADD_EXECUTABLE(Server src/server_main.cpp src/Server.cpp src/Server.h src/Common.hpp src/json.hpp)
 TARGET_LINK_LIBRARIES(Server PRIVATE Threads::Threads CONAN_PKG::boost)
 
-ADD_EXECUTABLE(Client src/Client.cpp src/Common.hpp src/json.hpp)
+ADD_EXECUTABLE(Client src/client_main.cpp src/Client.cpp src/Client.h src/Common.hpp src/json.hpp)
 TARGET_LINK_LIBRARIES(Client PRIVATE Threads::Threads CONAN_PKG::boost)
