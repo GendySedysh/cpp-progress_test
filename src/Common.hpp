@@ -35,13 +35,4 @@ struct ResponseCode {
     constexpr static std::string_view ERROR = "ERROR"sv;
 };
 
-// namespace Requests
-// {
-//     static std::string Registration = "Reg";
-//     static std::string Hello = "Hel";
-//     static std::string Buy = "Buy";
-//     static std::string Sell = "Sell";
-//     static std::string Deal = "Deal";
-// }
-
 #endif //CLIENSERVERECN_COMMON_HPP

@@ -23,6 +23,13 @@ Core::Core() {
 std::string Core::HandleRequest(nlohmann::json data) {
     auto type = data["ReqType"].get<std::string>();
 
+    if (request_to_executor_function.count(type) == 0) {
+        nlohmann::json resp;
+        resp["Code"] = ResponseCode::ERROR;
+        resp["Message"] = "Error! Command is not valid";
+        return resp.dump();
+    }
+
     auto funcIter = request_to_executor_function.at(type);
     nlohmann::json response = (this->*funcIter)(data.at("Message"));
     return response.dump();
@@ -191,6 +198,7 @@ void Session::HandleRead(const boost::system::error_code& error, size_t bytes_tr
     if (!error)
     {
         data_[bytes_transferred] = '\0';
+        std::cout << data_ << std::endl;
 
         // Парсим json, который пришёл нам в сообщении.
         auto j = nlohmann::json::parse(data_);

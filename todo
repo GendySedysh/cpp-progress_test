@@ -1,0 +1,15 @@
+0. Обернуть все Request запросы в strand_
+1. Функция вызываемая раз в N милисекунд для завершения сделок
+2. Проверка сервера с помощью curl запросов
+3. Проверка клиента на посылание 
+
+
+; echo -n < request > | nc 127.0.0.1 5555
+; '{"Message":{"Password":"23","UserId":0,"Username":"test"},"ReqType":"REG"}'
+; '{"Message":{"Dollars":10,"Rubles":10,"UserId":0},"ReqType":"SELL"}'
+; '{"Message":{"Dollars":10,"Rubles":10,"UserId":0},"ReqType":"BUY"}'
+; '{"Message":{"UserId":0},"ReqType":"BALANCE"}'
+; '{"Message":{"UserId":0},"ReqType":"USER_ACTIVE"}'
+; '{"Message":{"UserId":0},"ReqType":"ACTIVE"}'
+
+# echo -n '{"Message":{"Password":"23","UserId":0,"Username":"test"},"ReqType":"REG"}' | nc 127.0.0.1 5555
