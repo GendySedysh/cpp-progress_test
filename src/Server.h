@@ -16,9 +16,28 @@ namespace server {
 
 using boost::asio::ip::tcp;
 
+enum TransactionType{
+    SELL,
+    BUY
+};
+
+struct Transaction {
+    size_t id;
+    size_t user_id;
+    DealData data;
+
+    std::string Print() const {
+        std::string transaction_data = "\t id:" + std::to_string(id) + ". " \
+            + std::to_string(data.dollars) + " dollars for " \
+            + std::to_string(data.rubles) + " rubles \n";
+        return transaction_data;
+    }
+};
+
 struct User {
     size_t id;
     std::string name;
+    std::string pass;
     int dollar_account;
     int rubles_account;
 };
@@ -26,13 +45,46 @@ struct User {
 class Core
 {
 public:
-    std::string RegisterNewUser(const std::string& aUserName);
-    std::string GetUserName(const std::string& aUserId);
+    using RequestHandlerFunc = nlohmann::json (server::Core::*)(nlohmann::json);
+
+    Core();
+    std::string HandleRequest(nlohmann::json data);
 
 private:
-    // <UserId, User>
     std::unordered_map<size_t, User> id_to_user_;
-    std::set<std::string> usernames_;
+    std::unordered_map<std::string, size_t> username_to_id_;
+    std::unordered_map<std::string_view, RequestHandlerFunc> request_to_executor_function;
+
+    struct TransactionComparator {
+        bool operator() (const Transaction &lhs, const Transaction &rhs) const{
+            if (lhs.data.rubles == rhs.data.rubles) {
+                return lhs.data.dollars > rhs.data.dollars;
+            }
+            return lhs.data.rubles > rhs.data.rubles;
+        }
+    };
+
+    std::set<Transaction, TransactionComparator> sell_;
+    std::set<Transaction, TransactionComparator> buy_;
+
+    // Вход пользователя
+    nlohmann::json UserConnection(nlohmann::json message);
+    nlohmann::json RegisterNewUser(const std::string& aUserName, const std::string& aUserPass);
+    nlohmann::json UserAuthorization(const std::string& aUserName, const std::string& aUserPass);
+
+    // Запросы покупки/продажи
+    DealData ParseDealData(nlohmann::json message);
+    nlohmann::json CreateBuyTicket(nlohmann::json message);
+    nlohmann::json CreateSellTicket(nlohmann::json message);
+
+    // Данные по балансу
+    nlohmann::json BalanceData(nlohmann::json message);
+
+    // Активные транзакции данного пользователя
+    nlohmann::json UserTransactions(nlohmann::json message);
+
+    // Все активные транзакции
+    nlohmann::json ActiveTransactions(nlohmann::json message);
 };
 
 Core& GetCore();

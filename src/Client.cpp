@@ -15,14 +15,7 @@ RequestHandler::RequestHandler() {
 nlohmann::json RequestHandler::PrepareRequest(std::string_view type) {
     nlohmann::json req;
 
-    // нет функций способных обработать запрос
-    if (request_to_executor_function.count(type) == 0) {
-        req["Code"] = ResponseCode::ERROR;
-        return req;
-    }
-
     auto funcIter = request_to_executor_function.at(type);
-
     req["Message"] = (this->*funcIter)();
     return req;
 }
@@ -43,17 +36,10 @@ nlohmann::json RequestHandler::Deal() {
 
     nlohmann::json req;
 
-    if (!data.IsValid()) {
-        req["Code"] = ResponseCode::ERROR;
-        return req;
-    }
-
-    req["Code"] = ResponseCode::OK;
     req["Dollars"] = data.dollars;
     req["Rubles"] = data.rubles;
     return req;
 }
-
 
 /* -------------------- Client -------------------- */
 
@@ -69,7 +55,10 @@ void Client::AskRequest() {
     std::cout << "Menu:\n"
                  "1) Sell\n"
                  "2) Buy\n"
-                 "3) Exit\n"
+                 "3) Check balance\n"
+                 "4) My active transactions\n"
+                 "5) All active transactions\n"
+                 "6) Exit\n"
                  << std::endl;
 
     short menu_option_num;
@@ -93,27 +82,41 @@ void Client::AskRequest() {
         }
         case 3:
         {
+            req["ReqType"] = Requests::BALANCE;
+            break;
+        }
+        case 4:
+        {
+            req["ReqType"] = Requests::USER_ACTIVE;
+            break;
+        }
+        case 5:
+        {
+            req["ReqType"] = Requests::ACTIVE;
+            break;
+        }
+        case 6:
+        {
             exit(0);
             break;
         }
         default:
         {
             std::cout << "Unknown menu option\n" << std::endl;
+            return;
         }
     }
-    if (req.at("Message").at("Code") == ResponseCode::ERROR) {
-        std::cout << "Invalid request" << std::endl;
-        return;
-    }
     SendMessage(req);
+    std::string response = ReadMessage();
+    auto json = nlohmann::json::parse(response);
+    std::cout << json.at("Message").get<std::string>() << std::endl;
 }
 
 // Отправка сообщения на сервер по шаблону.
 void Client::SendMessage(nlohmann::json req) {
-    req["UserId"] = id_;
+    req["Message"]["UserId"] = id_;
 
     std::string request = req.dump();
-    std::cout << request << std::endl;
     boost::asio::write(socket_, boost::asio::buffer(request, request.size()));
 }
 
@@ -127,18 +130,33 @@ std::string Client::ReadMessage() {
 }
 
 // "Создаём" пользователя, получаем его ID.
-bool Client::ProcessRegistration() {
-    std::string name;
+bool Client::ProcessAuthorization() {
+    std::string name, pass;
     std::cout << "Hello! Enter your name: ";
     std::cin >> name;
+    std::cout << "password: ";
+    std::cin >> pass;
+
+    nlohmann::json message;
+    message["Username"] = name;
+    message["Password"] = pass;
 
     nlohmann::json req;
     req["ReqType"] = Requests::REG;
-    req["Message"] = name;
-    // Для регистрации Id не нужен, заполним его нулём
+    req["Message"] = message;
+
     SendMessage(req);
     std::string response = ReadMessage();
-    id_ = response;
+    nlohmann::json json = nlohmann::json::parse(response.c_str());
+
+    auto code = json["Code"];
+
+    std::cout << json["Message"] << std::endl;
+    if (code == ResponseCode::ERROR) {
+        return false;
+    }
+
+    id_ = json["Id"];
     return true;
 }
 

@@ -13,9 +13,7 @@ struct DealData {
     int rubles = 0;
 
     bool IsValid() {
-        if (dollars < 0 || rubles < 0) {
-            dollars = 0;
-            rubles = 0;
+        if (dollars <= 0 || rubles <= 0) {
             return false;
         }
         return true;
@@ -27,6 +25,9 @@ struct Requests {
     constexpr static std::string_view BUY = "BUY"sv;
     constexpr static std::string_view SELL = "SELL"sv;
     constexpr static std::string_view DEAL = "DEAL"sv;
+    constexpr static std::string_view BALANCE = "BALANCE"sv;
+    constexpr static std::string_view ACTIVE = "ACTIVE"sv;
+    constexpr static std::string_view USER_ACTIVE = "USER_ACTIVE"sv;
 };
 
 struct ResponseCode {

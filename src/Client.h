@@ -31,14 +31,14 @@ class Client {
 public:
     Client();
 
-    bool ProcessRegistration();
+    bool ProcessAuthorization();
     void AskRequest();
 
 private:
     boost::asio::io_service io_;
     tcp::socket socket_{io_};
     RequestHandler request_handler_;
-    std::string id_ = "0";
+    size_t id_ = 0;
 
     void SendMessage(nlohmann::json req);
     std::string ReadMessage();

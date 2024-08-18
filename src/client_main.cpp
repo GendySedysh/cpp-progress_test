@@ -8,9 +8,11 @@ int main()
     try
     {
         boost::asio::io_service io_service;
-
         Client client;
-        client.ProcessRegistration();
+
+        if (!client.ProcessAuthorization()) {
+            exit(0);
+        }
 
         while (true)
         {
