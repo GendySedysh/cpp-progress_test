@@ -25,12 +25,11 @@ struct Transaction {
     DealData data;
     bool active = true;
 
-    // TODO: заменить конкатинацию на streamstring
     std::string Print() const {
-        std::string transaction_data = "\t id:" + std::to_string(id) + ". " \
-            + std::to_string(data.dollars) + " dollars for " \
-            + std::to_string(data.rubles) + " rubles \n";
-        return transaction_data;
+        std::stringstream ss;
+
+        ss << "\t id:" << id << ". " << data.dollars << " dollars for " << data.rubles << " rubles \n";
+        return ss.str();
     }
 
     bool IsMatch(const Transaction& other) const {
@@ -68,10 +67,10 @@ struct User {
 class Core
 {
 public:
-    using RequestHandlerFunc = nlohmann::json (server::Core::*)(nlohmann::json);
+    using RequestHandlerFunc = nlohmann::json (server::Core::*)(const nlohmann::json&);
 
     Core();
-    std::string HandleRequest(nlohmann::json data);
+    std::string HandleRequest(const nlohmann::json& data);
     void TransactionManagment();
 
 private:
@@ -83,26 +82,26 @@ private:
     std::vector<Transaction> buy_;
 
     // Вход пользователя
-    nlohmann::json UserConnection(nlohmann::json message);
+    nlohmann::json UserConnection(const nlohmann::json& message);
     nlohmann::json RegisterNewUser(const std::string& aUserName, const std::string& aUserPass);
     nlohmann::json UserAuthorization(const std::string& aUserName, const std::string& aUserPass);
 
     // Запросы покупки/продажи
-    DealData ParseDealData(nlohmann::json message);
-    nlohmann::json CreateBuyTicket(nlohmann::json message);
-    nlohmann::json CreateSellTicket(nlohmann::json message);
+    DealData ParseDealData(const nlohmann::json& message);
+    nlohmann::json CreateBuyTicket(const nlohmann::json& message);
+    nlohmann::json CreateSellTicket(const nlohmann::json& message);
 
     // Данные по балансу
-    nlohmann::json BalanceData(nlohmann::json message);
+    nlohmann::json BalanceData(const nlohmann::json& message);
 
     // Активные транзакции данного пользователя
-    nlohmann::json UserTransactions(nlohmann::json message);
+    nlohmann::json UserTransactions(const nlohmann::json& message);
 
     // Все активные транзакции
-    nlohmann::json ActiveTransactions(nlohmann::json message);
+    nlohmann::json ActiveTransactions(const nlohmann::json& message);
 
     // Изменить транзакцию
-    nlohmann::json ChangeTransaction(nlohmann::json message);
+    nlohmann::json ChangeTransaction(const nlohmann::json& message);
 
     // Обработка пары транзакций
     void Transact(Transaction& sell, Transaction& buy);

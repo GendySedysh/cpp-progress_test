@@ -21,7 +21,7 @@ Core::Core() {
     request_to_executor_function[Requests::CHANGE] = &Core::ChangeTransaction;
 }
 
-std::string Core::HandleRequest(nlohmann::json data) {
+std::string Core::HandleRequest(const nlohmann::json& data) {
     auto type = data["ReqType"].get<std::string>();
 
     if (request_to_executor_function.count(type) == 0) {
@@ -79,7 +79,7 @@ void Core::Transact(Transaction& sell, Transaction& buy) {
     }
 }
 
-nlohmann::json Core::UserConnection(nlohmann::json message) {
+nlohmann::json Core::UserConnection(const nlohmann::json& message) {
     auto aUserName = message.at("Username").get<std::string>();
     auto aUserPass = message.at("Password").get<std::string>();
 
@@ -128,12 +128,12 @@ nlohmann::json Core::RegisterNewUser(const std::string& aUserName, const std::st
     return resp;
 }
 
-DealData Core::ParseDealData(nlohmann::json message) {
+DealData Core::ParseDealData(const nlohmann::json& message) {
     DealData deal{ message["Dollars"].get<int>(), message["Rubles"].get<int>() };
     return deal;
 }
 
-nlohmann::json Core::CreateBuyTicket(nlohmann::json message) {
+nlohmann::json Core::CreateBuyTicket(const nlohmann::json& message) {
     size_t user_id = message["UserId"].get<int>();
     auto deal_data = ParseDealData(message);
 
@@ -153,7 +153,7 @@ nlohmann::json Core::CreateBuyTicket(nlohmann::json message) {
     return resp;
 }
 
-nlohmann::json Core::CreateSellTicket(nlohmann::json message) {
+nlohmann::json Core::CreateSellTicket(const nlohmann::json& message) {
     size_t user_id = message["UserId"].get<int>();
     DealData deal_data = ParseDealData(message);
 
@@ -173,7 +173,7 @@ nlohmann::json Core::CreateSellTicket(nlohmann::json message) {
     return resp;
 }
 
-nlohmann::json Core::BalanceData(nlohmann::json message) {
+nlohmann::json Core::BalanceData(const nlohmann::json& message) {
     size_t user_id = message["UserId"].get<int>();
     auto user = id_to_user_.at(user_id);
 
@@ -184,7 +184,7 @@ nlohmann::json Core::BalanceData(nlohmann::json message) {
     return resp;
 }
 
-nlohmann::json Core::UserTransactions(nlohmann::json message) {
+nlohmann::json Core::UserTransactions(const nlohmann::json& message) {
     size_t user_id = message["UserId"].get<int>();
 
     nlohmann::json resp;
@@ -209,7 +209,7 @@ nlohmann::json Core::UserTransactions(nlohmann::json message) {
     return resp;
 }
 
-nlohmann::json Core::ActiveTransactions(nlohmann::json message) {
+nlohmann::json Core::ActiveTransactions(const nlohmann::json& message) {
     nlohmann::json resp;
     resp["Code"] = ResponseCode::OK;
 
@@ -228,7 +228,7 @@ nlohmann::json Core::ActiveTransactions(nlohmann::json message) {
     return resp;
 }
 
-nlohmann::json Core::ChangeTransaction(nlohmann::json message) {
+nlohmann::json Core::ChangeTransaction(const nlohmann::json& message) {
     size_t transaction_id = message["TransactionId"].get<int>();
 
     auto transaction = std::find_if(sell_.begin(), sell_.end(), [&transaction_id](const Transaction &data) {
