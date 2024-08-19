@@ -10,6 +10,7 @@ using boost::asio::ip::tcp;
 RequestHandler::RequestHandler() {
     request_to_executor_function[Requests::BUY] = &RequestHandler::Deal;
     request_to_executor_function[Requests::SELL] = &RequestHandler::Deal;
+    request_to_executor_function[Requests::CHANGE] = &RequestHandler::Change;
 }
 
 nlohmann::json RequestHandler::PrepareRequest(std::string_view type) {
@@ -41,6 +42,16 @@ nlohmann::json RequestHandler::Deal() {
     return req;
 }
 
+nlohmann::json RequestHandler::Change() {
+    size_t transaction_id;
+    std::cout << "Enter transaction ID to change : ";
+    std::cin >> transaction_id;
+
+    nlohmann::json req = Deal();
+    req["TransactionId"] = transaction_id;
+    return req;
+}
+
 /* -------------------- Client -------------------- */
 
 Client::Client() {
@@ -57,8 +68,9 @@ void Client::AskRequest() {
                  "2) Buy\n"
                  "3) Check balance\n"
                  "4) My active transactions\n"
-                 "5) All active transactions\n"
-                 "6) Exit\n"
+                 "5) Change transaction\n"
+                 "6) All active transactions\n"
+                 "7) Exit\n"
                  << std::endl;
 
     short menu_option_num;
@@ -92,10 +104,16 @@ void Client::AskRequest() {
         }
         case 5:
         {
-            req["ReqType"] = Requests::ACTIVE;
+            req = request_handler_.PrepareRequest(Requests::CHANGE);
+            req["ReqType"] = Requests::CHANGE;
             break;
         }
         case 6:
+        {
+            req["ReqType"] = Requests::ACTIVE;
+            break;
+        }
+        case 7:
         {
             exit(0);
             break;

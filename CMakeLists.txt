@@ -8,7 +8,7 @@ conan_basic_setup(TARGETS)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-ADD_EXECUTABLE(Server src/server_main.cpp src/Server.cpp src/Server.h src/Common.hpp src/json.hpp)
+ADD_EXECUTABLE(Server src/server_main.cpp src/Server.cpp src/Server.h src/Common.hpp src/json.hpp src/Ticker.h)
 TARGET_LINK_LIBRARIES(Server PRIVATE Threads::Threads CONAN_PKG::boost)
 
 ADD_EXECUTABLE(Client src/client_main.cpp src/Client.cpp src/Client.h src/Common.hpp src/json.hpp)

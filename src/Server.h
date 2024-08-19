@@ -6,31 +6,54 @@
 #include <cstdlib>
 #include <iostream>
 #include <unordered_map>
-#include <set>
+#include <vector>
+#include <algorithm>
 #include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>
+
 #include "json.hpp"
 #include "Common.hpp"
+#include "Ticker.h"
 
 namespace server {
 
 using boost::asio::ip::tcp;
 
-enum TransactionType{
-    SELL,
-    BUY
-};
-
 struct Transaction {
     size_t id;
     size_t user_id;
     DealData data;
+    bool active = true;
 
+    // TODO: заменить конкатинацию на streamstring
     std::string Print() const {
         std::string transaction_data = "\t id:" + std::to_string(id) + ". " \
             + std::to_string(data.dollars) + " dollars for " \
             + std::to_string(data.rubles) + " rubles \n";
         return transaction_data;
+    }
+
+    bool IsMatch(const Transaction& other) const {
+        if (data.dollars >= other.data.dollars && user_id != other.user_id \
+            && data.rubles <= other.data.rubles && active && other.active) {
+            return true;
+        }
+        return false;
+    }
+};
+
+struct TransactionComparator {
+    bool operator() (const Transaction &lhs, const Transaction &rhs) const{
+        if (lhs.data.rubles == rhs.data.rubles) {
+            return lhs.data.dollars > rhs.data.dollars;
+        }
+        return lhs.data.rubles > rhs.data.rubles;
+    }
+};
+
+struct TransactionNOTActive {
+    bool operator() (const Transaction &data) const {
+        return !data.active;
     }
 };
 
@@ -49,23 +72,15 @@ public:
 
     Core();
     std::string HandleRequest(nlohmann::json data);
+    void TransactionManagment();
 
 private:
     std::unordered_map<size_t, User> id_to_user_;
     std::unordered_map<std::string, size_t> username_to_id_;
     std::unordered_map<std::string_view, RequestHandlerFunc> request_to_executor_function;
 
-    struct TransactionComparator {
-        bool operator() (const Transaction &lhs, const Transaction &rhs) const{
-            if (lhs.data.rubles == rhs.data.rubles) {
-                return lhs.data.dollars > rhs.data.dollars;
-            }
-            return lhs.data.rubles > rhs.data.rubles;
-        }
-    };
-
-    std::set<Transaction, TransactionComparator> sell_;
-    std::set<Transaction, TransactionComparator> buy_;
+    std::vector<Transaction> sell_;
+    std::vector<Transaction> buy_;
 
     // Вход пользователя
     nlohmann::json UserConnection(nlohmann::json message);
@@ -85,6 +100,12 @@ private:
 
     // Все активные транзакции
     nlohmann::json ActiveTransactions(nlohmann::json message);
+
+    // Изменить транзакцию
+    nlohmann::json ChangeTransaction(nlohmann::json message);
+
+    // Обработка пары транзакций
+    void Transact(Transaction& sell, Transaction& buy);
 };
 
 Core& GetCore();

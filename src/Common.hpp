@@ -3,10 +3,12 @@
 
 #include <string>
 #include <string_view>
+#include <boost/asio.hpp>
 
 using namespace std::literals;
 
 static short port = 5555;
+static short TICKRATE = 1000;
 
 struct DealData {
     int dollars = 0;
@@ -28,6 +30,7 @@ struct Requests {
     constexpr static std::string_view BALANCE = "BALANCE"sv;
     constexpr static std::string_view ACTIVE = "ACTIVE"sv;
     constexpr static std::string_view USER_ACTIVE = "USER_ACTIVE"sv;
+    constexpr static std::string_view CHANGE = "CHANGE"sv;
 };
 
 struct ResponseCode {

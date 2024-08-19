@@ -25,6 +25,7 @@ private:
 
     DealData RequestDealData();
     nlohmann::json Deal();
+    nlohmann::json Change();
 };
 
 class Client {

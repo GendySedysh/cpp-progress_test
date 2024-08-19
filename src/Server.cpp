@@ -18,6 +18,7 @@ Core::Core() {
     request_to_executor_function[Requests::BALANCE] = &Core::BalanceData;
     request_to_executor_function[Requests::USER_ACTIVE] = &Core::UserTransactions;
     request_to_executor_function[Requests::ACTIVE] = &Core::ActiveTransactions;
+    request_to_executor_function[Requests::CHANGE] = &Core::ChangeTransaction;
 }
 
 std::string Core::HandleRequest(nlohmann::json data) {
@@ -33,6 +34,49 @@ std::string Core::HandleRequest(nlohmann::json data) {
     auto funcIter = request_to_executor_function.at(type);
     nlohmann::json response = (this->*funcIter)(data.at("Message"));
     return response.dump();
+}
+
+void Core::TransactionManagment() {
+    // нечего обрабатывать
+    if (sell_.empty() || buy_.empty()) {
+        return ;
+    }
+
+    std::sort(sell_.begin(), sell_.end(), TransactionComparator());
+    std::sort(buy_.begin(), buy_.end(), TransactionComparator());
+
+    for (auto &sell_trans: sell_) {
+        for (auto &buy_trans: buy_) {
+            if (sell_trans.IsMatch(buy_trans)) {
+                Transact(sell_trans, buy_trans);
+            }
+        }
+    }
+
+    sell_.erase(
+        std::remove_if(sell_.begin(), sell_.end(), TransactionNOTActive()), sell_.end()
+    );
+
+    buy_.erase(
+        std::remove_if(buy_.begin(), buy_.end(), TransactionNOTActive()) , buy_.end()
+    );
+}
+
+void Core::Transact(Transaction& sell, Transaction& buy) {
+    User& seller = id_to_user_.at(sell.user_id);
+    User& buyer = id_to_user_.at(buy.user_id);
+
+    seller.dollar_account -= buy.data.dollars;
+    seller.rubles_account += buy.data.dollars * buy.data.rubles;
+
+    buyer.dollar_account += buy.data.dollars;
+    buyer.rubles_account -= buy.data.dollars * buy.data.rubles;
+
+    buy.active = false;
+    sell.data.dollars -= buy.data.dollars;
+    if (sell.data.dollars == 0) {
+        sell.active = false;
+    }
 }
 
 nlohmann::json Core::UserConnection(nlohmann::json message) {
@@ -93,7 +137,7 @@ nlohmann::json Core::CreateBuyTicket(nlohmann::json message) {
         return resp;
     }
     auto transaction_id = sell_.size() + buy_.size() + 1;
-    buy_.insert({transaction_id, user_id, deal_data});
+    buy_.push_back({transaction_id, user_id, deal_data});
 
     resp["Code"] = ResponseCode::OK;
     resp["Message"] = "Transaction BUY " + std::to_string(deal_data.dollars) + " dollars for " + \
@@ -113,7 +157,7 @@ nlohmann::json Core::CreateSellTicket(nlohmann::json message) {
         return resp;
     }
     auto transaction_id = sell_.size() + buy_.size() + 1;
-    sell_.insert({transaction_id, user_id, deal_data});
+    sell_.push_back({transaction_id, user_id, deal_data});
 
     resp["Code"] = ResponseCode::OK;
     resp["Message"] = "Transaction SELL " + std::to_string(deal_data.dollars) + " dollars for " + \
@@ -138,7 +182,7 @@ nlohmann::json Core::UserTransactions(nlohmann::json message) {
     nlohmann::json resp;
     resp["Code"] = ResponseCode::OK;
 
-    std::string data = "All active transactions\n";
+    std::string data = "Your active transactions\n";
     data += "to SELL:\n";
     for (const auto transaction: sell_){
         if (transaction.user_id == user_id) {
@@ -176,6 +220,44 @@ nlohmann::json Core::ActiveTransactions(nlohmann::json message) {
     return resp;
 }
 
+nlohmann::json Core::ChangeTransaction(nlohmann::json message) {
+    size_t transaction_id = message["TransactionId"].get<int>();
+
+    auto transaction = std::find_if(sell_.begin(), sell_.end(), [&transaction_id](const Transaction &data) {
+        return data.id == transaction_id;
+    });
+
+    if (transaction == sell_.end()) {
+        transaction = std::find_if(buy_.begin(), buy_.end(), [&transaction_id](const Transaction &data) {
+            return data.id == transaction_id;
+        });
+    }
+
+    nlohmann::json resp;
+    resp["Code"] = ResponseCode::ERROR;
+    if (transaction == sell_.end()) {
+        resp["Message"] = "Error! No active transaction with ID " + std::to_string(transaction_id);
+        return resp;
+    }
+
+    size_t user_id = message["UserId"].get<int>();
+    if (transaction->user_id != user_id) {
+        resp["Message"] = "Error! You dont have premissions to change transaction with ID " + std::to_string(transaction_id);
+        return resp;
+    }
+
+    DealData deal_data = ParseDealData(message);
+    if (!deal_data.IsValid()) {
+        resp["Message"] = "Error! Transaction is not valid";
+        return resp;
+    }
+
+    transaction->data = deal_data;
+    resp["Code"] = ResponseCode::OK;
+    resp["Message"] = "Transaction data changed";
+    return resp;
+}
+
 
 /* -------------------- Session -------------------- */
 
@@ -198,11 +280,9 @@ void Session::HandleRead(const boost::system::error_code& error, size_t bytes_tr
     if (!error)
     {
         data_[bytes_transferred] = '\0';
-        std::cout << data_ << std::endl;
 
         // Парсим json, который пришёл нам в сообщении.
         auto j = nlohmann::json::parse(data_);
-
         std::string reply = GetCore().HandleRequest(j);
         
         boost::asio::async_write(socket_,
@@ -233,7 +313,8 @@ void Session::HandleWrite(const boost::system::error_code& error) {
 /* -------------------- Server -------------------- */
 
 Server::Server(boost::asio::io_service& io_service)
-    : io_service_(io_service), acceptor_(io_service, tcp::endpoint(tcp::v4(), port))
+    : io_service_(io_service),
+      acceptor_(io_service, tcp::endpoint(tcp::v4(), port))
 {
     std::cout << "Server started! Listen " << port << " port" << std::endl;
 
