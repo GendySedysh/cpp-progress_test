@@ -82,6 +82,14 @@ void Core::Transact(Transaction& sell, Transaction& buy) {
 nlohmann::json Core::UserConnection(nlohmann::json message) {
     auto aUserName = message.at("Username").get<std::string>();
     auto aUserPass = message.at("Password").get<std::string>();
+
+    if (aUserName.empty() || aUserPass.empty()) {
+        nlohmann::json resp;
+        resp["Code"] = ResponseCode::ERROR;
+        resp["Message"] = "Error! Empty name or password";
+        return resp;
+    }
+
     // Существует ли пользователь с данным именем
     if (username_to_id_.count(aUserName) == 0) {
         return RegisterNewUser(aUserName, aUserPass);

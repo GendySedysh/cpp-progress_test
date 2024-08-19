@@ -9,16 +9,18 @@ pip install --force-reinstall -v "conan==1.64.0"
 
 Порядок сборки:
 ```
-mkdir build 
-cd build
-conan install .. --build=missing
-cmake ..
+mkdir build  && cd build
+conan install .. --build=missing -s build_type=Release -s compiler.libcxx=libstdc++11
+cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build .
+
 ```
 
 ## Использование 
 
-(ТУТ ДОЛЖНА БЫТЬ ИНСТРУКЦИЯ)
+./bin/BoostTest --report_level=short для запуска тестов
+./bin/Server для запуска сервера
+./bin/Client для запуска клиента
 
 ## 📈 Легенда
 ---
